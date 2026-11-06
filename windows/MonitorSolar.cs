@@ -189,6 +189,19 @@ sealed class TaskbarText : Form
 
 sealed class Monitor : ApplicationContext
 {
+    static readonly Tuple<string, Color>[] Palette = {
+        Tuple.Create("Roxo", Color.FromArgb(155, 89, 255)),
+        Tuple.Create("Azul", Color.RoyalBlue),
+        Tuple.Create("Ciano", Color.Turquoise),
+        Tuple.Create("Verde", Color.LimeGreen),
+        Tuple.Create("Amarelo", Color.Gold),
+        Tuple.Create("Laranja", Color.DarkOrange),
+        Tuple.Create("Vermelho", Color.Crimson),
+        Tuple.Create("Rosa", Color.HotPink),
+        Tuple.Create("Branco", Color.White),
+        Tuple.Create("Preto", Color.Black)
+    };
+
     static readonly string Profile = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MonitorSolar");
     static readonly string Config = Path.Combine(Profile, "settings.dat");
@@ -214,16 +227,7 @@ sealed class Monitor : ApplicationContext
         var menu = new ContextMenuStrip();
         menu.Items.Add("Configurar", null, (s, e) => Configure());
         var colors = new ToolStripMenuItem("Trocar cor");
-        AddColor(colors, "Roxo", Color.FromArgb(155, 89, 255));
-        AddColor(colors, "Azul", Color.RoyalBlue);
-        AddColor(colors, "Ciano", Color.Turquoise);
-        AddColor(colors, "Verde", Color.LimeGreen);
-        AddColor(colors, "Amarelo", Color.Gold);
-        AddColor(colors, "Laranja", Color.DarkOrange);
-        AddColor(colors, "Vermelho", Color.Crimson);
-        AddColor(colors, "Rosa", Color.HotPink);
-        AddColor(colors, "Branco", Color.White);
-        AddColor(colors, "Preto", Color.Black);
+        foreach (var preset in Palette) AddColor(colors, preset.Item1, preset.Item2);
         colors.DropDownItems.Add(new ToolStripSeparator());
         colors.DropDownItems.Add("Outra cor…", null, (s, e) => ChooseColor());
         menu.Items.Add(colors);
@@ -338,7 +342,7 @@ sealed class Monitor : ApplicationContext
     void Configure()
     {
         using (var form = new Form { Text = "Monitor Solar · Home Assistant", StartPosition = FormStartPosition.CenterScreen,
-            ClientSize = new Size(520, 350), FormBorderStyle = FormBorderStyle.FixedDialog,
+            ClientSize = new Size(520, 430), FormBorderStyle = FormBorderStyle.FixedDialog,
             MaximizeBox = false, MinimizeBox = false, Font = new Font("Segoe UI", 10) })
         {
             var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(14), ColumnCount = 1, AutoScroll = true };
@@ -351,20 +355,53 @@ sealed class Monitor : ApplicationContext
             var first = Field(layout, "Sensor total ou inversor 1 (ID)", settings.First);
             var second = Field(layout, "Inversor 2 (ID, opcional)", settings.Second);
             layout.Controls.Add(new Label { Text = "Campos de sensor vazios procuram “Potência Solar Total”.", AutoSize = true });
+            layout.Controls.Add(new Label { Text = "Cor do indicador", AutoSize = true });
+            var colors = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 200 };
+            colors.Items.AddRange(Palette.Select(preset => preset.Item1).ToArray());
+            colors.Items.Add("Personalizada");
+            var chosenColor = Color.FromArgb(settings.Color);
+            int selected = Array.FindIndex(Palette, preset => preset.Item2.ToArgb() == chosenColor.ToArgb());
+            colors.SelectedIndex = selected >= 0 ? selected : Palette.Length;
+            var customColor = chosenColor;
+            var preview = new Label { Text = "■", AutoSize = true, ForeColor = chosenColor };
+            colors.SelectedIndexChanged += (sender, args) =>
+            {
+                if (colors.SelectedIndex < 0) return;
+                chosenColor = colors.SelectedIndex < Palette.Length
+                    ? Palette[colors.SelectedIndex].Item2 : customColor;
+                preview.ForeColor = chosenColor;
+            };
+            var custom = new Button { Text = "Outra cor…", AutoSize = true };
+            custom.Click += (sender, args) =>
+            {
+                using (var dialog = new ColorDialog { Color = chosenColor, FullOpen = true })
+                {
+                    if (dialog.ShowDialog(form) != DialogResult.OK) return;
+                    customColor = dialog.Color;
+                    colors.SelectedIndex = Palette.Length;
+                    chosenColor = customColor;
+                    preview.ForeColor = chosenColor;
+                }
+            };
+            var colorRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            colorRow.Controls.AddRange(new Control[] { colors, custom, preview });
+            layout.Controls.Add(colorRow);
             var save = new Button { Text = "Salvar e atualizar", AutoSize = true };
             layout.Controls.Add(save);
             form.AcceptButton = save;
             save.Click += (sender, args) =>
             {
                 var next = new Settings { Url = url.Text.Trim().TrimEnd('/'), Token = token.Text.Trim(),
-                    First = first.Text.Trim(), Second = second.Text.Trim(), Color = settings.Color };
+                    First = first.Text.Trim(), Second = second.Text.Trim(), Color = chosenColor.ToArgb() };
                 try
                 {
-                    Solar.Validate(next);
+                    if (next.Url != "" || next.Token != "" || next.First != "" || next.Second != "")
+                        Solar.Validate(next);
                     Save(next);
                     settings = next;
                     detected = new string[1];
-                    SetText("Lendo geração…", "Consultando o Home Assistant.");
+                    if (next.Url == "") SetText("Configurar solar", "Configure a conexão com o Home Assistant.");
+                    else SetText("Lendo geração…", "Consultando o Home Assistant.");
                     form.Close();
                     Read();
                 }

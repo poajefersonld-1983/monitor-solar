@@ -20,7 +20,7 @@ O executável usa o .NET Framework do Windows. Para recompilar a partir do códi
 
 ## Cores
 
-Escolha entre roxo, azul, ciano, verde, amarelo, laranja, vermelho, rosa, branco e preto. **Outra cor…** abre o seletor personalizado. No KDE, escolha a cor em **Configurar / cor** e clique em **Salvar**. No Windows, use o menu **Trocar cor** no botão direito do indicador.
+Escolha entre roxo, azul, ciano, verde, amarelo, laranja, vermelho, rosa, branco e preto. **Outra cor…** abre o seletor personalizado. No KDE, escolha a cor em **Configurar / cor** e clique em **Salvar**. No Windows, clique no indicador, escolha **Cor do indicador** e clique em **Salvar e atualizar**. Você também pode usar **Trocar cor** no menu do botão direito.
 
 ## Conectar ao Home Assistant
 
