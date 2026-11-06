@@ -1,0 +1,13 @@
+{
+  "KPackageStructure": "Plasma/Applet",
+  "KPlugin": {
+    "Id": "io.github.poajefersonld1983.monitor-solar",
+    "Name": "Monitor Solar",
+    "Description": "Potência dos inversores via Home Assistant",
+    "Icon": "weather-clear",
+    "Category": "System Information",
+    "Version": "0.1.1",
+    "License": "MIT"
+  },
+  "X-Plasma-API-Minimum-Version": "6.0"
+}
