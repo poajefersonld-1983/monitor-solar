@@ -118,7 +118,7 @@ static class Solar
         string first = "/" + (s.First == "" ? detected[0] : s.First);
         if (s.Second == "") return Watts(await Get<Sensor>(s, first).ConfigureAwait(false));
         var readings = await Task.WhenAll(Get<Sensor>(s, first), Get<Sensor>(s, "/" + s.Second)).ConfigureAwait(false);
-        var total = readings.Sum(Watts);
+        var total = readings.Sum(sensor => Watts(sensor));
         if (Double.IsInfinity(total)) throw new InvalidOperationException("Leitura solar indisponível.");
         return total;
     }
@@ -137,7 +137,7 @@ sealed class TaskbarText : Form
 
     public TaskbarText()
     {
-        ShowInTaskbar = false;
+        Text = "Monitor Solar Taskbar"; ShowInTaskbar = false;
         TopMost = true;
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.Manual;
@@ -154,6 +154,30 @@ sealed class TaskbarText : Form
 
     public bool PositionOnTaskbar()
     {
+        IntPtr tokenWindow = FindWindow(null, "Codex Taskbar Text");
+        Rect tokenBounds;
+        if (tokenWindow != IntPtr.Zero && IsWindowVisible(tokenWindow) && GetWindowRect(tokenWindow, out tokenBounds))
+        {
+            var display = Screen.FromHandle(tokenWindow).Bounds;
+            int solarWidth = Math.Max(TextRenderer.MeasureText("Solar indisponível", Font).Width,
+                TextRenderer.MeasureText(Readout.Text, Font).Width) + 14;
+            int solarX = Math.Max(display.Left + 4, tokenBounds.Left - solarWidth - 12);
+            int solarHeight = Math.Max(24, tokenBounds.Bottom - tokenBounds.Top);
+            try
+            {
+                using (var pixel = new Bitmap(1, 1))
+                {
+                    using (var graphics = Graphics.FromImage(pixel))
+                        graphics.CopyFromScreen(solarX, tokenBounds.Top - 2, 0, 0, new Size(1, 1));
+                    BackColor = pixel.GetPixel(0, 0);
+                }
+            }
+            catch (ExternalException) { }
+            Bounds = new Rectangle(solarX, tokenBounds.Top, solarWidth, solarHeight);
+            if (!Visible) Show();
+            SetWindowPos(Handle, new IntPtr(-1), solarX, tokenBounds.Top, solarWidth, solarHeight, 0x10 | 0x40);
+            return true;
+        }
         IntPtr bar = FindWindow("Shell_TrayWnd", null);
         IntPtr tray = FindWindowEx(bar, IntPtr.Zero, "TrayNotifyWnd", null);
         Rect b, t;
